@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!--
+	Fetches OpenStringPool and RefParse from projects existing in same workspace
+-->
+
+<project name="import">
+	<target name="fetch" depends="fetch-ic,fetch-xm,fetch-gg" />
+	
+	<target name="check-fetch-ic" unless="ic.exists">
+		<available property="ic.exists" file="../idaho-core/lib/mail.jar"/>
+	</target>
+	<target name="fetch-ic" depends="check-fetch-ic" if="${ic.exists}">
+    	<copy file="../idaho-core/lib/mail.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+    	<copy file="../idaho-core/dist/StringUtils.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+    	<copy file="../idaho-core/dist/HtmlXmlUtil.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+    	<copy file="../idaho-core/dist/Gamta.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+    	<copy file="../idaho-core/dist/EasyIO.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+	</target>
+	
+	<!--target name="check-fetch-ie" unless="ie.exists">
+		<available property="ie.exists" file="../idaho-extensions/dist/GamtaImagingAPI.jar"/>
+	</target>
+	<target name="fetch-ie" depends="check-fetch-ie" if="${ie.exists}">
+    	<copy file="../idaho-extensions/dist/GamtaImagingAPI.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+    	<copy file="../idaho-extensions/dist/GamtaFeedbackAPI.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+    	<copy file="../idaho-extensions/dist/BibRefUtils.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+	</target-->
+	
+	<target name="check-fetch-xm" unless="xm.exists">
+		<available property="xm.exists" file="../idaho-xmlmarkup/dist/XmlMarkup.jar"/>
+	</target>
+	<target name="fetch-xm" depends="check-fetch-xm" if="${xm.exists}">
+    	<copy file="../idaho-xmlmarkup/dist/XmlMarkup.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+	</target>
+	
+	<target name="check-fetch-gg" unless="gg.exists">
+		<available property="gg.exists" file="../goldengate-core/dist/GoldenGATE.jar"/>
+	</target>
+	<target name="fetch-gg" depends="check-fetch-gg" if="${gg.exists}">
+    	<copy file="../goldengate-core/dist/GoldenGATE.jar" todir="${lib.home}" overwrite="true" verbose="false" />
+	</target>
+</project>

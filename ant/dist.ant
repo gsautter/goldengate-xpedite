@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!--
+	Does all the packing. That is, creates the files that live in dist/
+-->
+
+<project name="dist">
+	<!-- target name="zips" depends="xpeditezip,xpeditebatchzip,vpackerzip,xmfdocio" / -->
+	<target name="zips" depends="xpeditezip,xpeditebatchzip" />
+	
+	<target name="xpedite">
+		<delete file="${jar.xpedite}" />
+		<jar destfile="${jar.xpedite}" manifest="${file.home}/MANIFEST.xpedite.MF">
+			<fileset dir="${build.home}/classes">
+				<include name="**/**.class" />
+				<exclude name="**/batch/**.class" />
+				<exclude name="**/starter/**.class" />
+				<exclude name="**/utilities/**.class" />
+				<exclude name="**/configuration/**.class" />
+			</fileset>
+			<fileset dir="${src.home}">
+				<include name="**/**.java" />
+				<exclude name="**/batch/**.java" />
+				<exclude name="**/starter/**.java" />
+				<exclude name="**/utilities/**.java" />
+				<exclude name="**/configuration/**.java" />
+			</fileset>
+			<fileset dir="." includes="LICENSE.txt"/>
+		</jar>
+	</target>
+	
+	<target name="batch">
+		<delete file="${jar.batch}" />
+		<jar destfile="${jar.batch}" manifest="${file.home}/MANIFEST.batch.MF">
+			<fileset dir="${build.home}/classes">
+				<include name="**/batch/**.class" />
+			</fileset>
+			<fileset dir="${src.home}">
+				<include name="**/batch/**.java" />
+			</fileset>
+			<fileset dir="." includes="LICENSE.txt"/>
+		</jar>
+	</target>
+	
+	<target name="configmanager">
+		<delete file="${jar.configmanager}" />
+		<jar destfile="${jar.configmanager}">
+			<fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteConfigurationManager.class"/>
+			<fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteConfigurationManager$**.class"/>
+			<fileset dir="${src.home}" includes="**/configuration/GoldenGateXpediteConfigurationManager.java"/>
+			<fileset dir="." includes="LICENSE.txt"/>
+		</jar>
+	</target>
+	
+	<target name="xpeditestarter">
+		<delete file="${jar.xpedite.starter}"/>
+		<jar destfile="${jar.xpedite.starter}" manifest="${file.home}/MANIFEST.xpedite.starter.MF">
+			<fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteApplicationStarter.class"/>
+			<fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteApplicationStarter$**.class"/>
+			<!-- fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteConstants.class"/>
+			<fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteConstants$**.class"/>
+			<fileset dir="${build.home}/classes" includes="**/UpdateUtils.class"/>
+			<fileset dir="${build.home}/classes" includes="**/UpdateUtils$**.class"/ -->
+			<fileset dir="${src.home}" includes="**/GoldenGateXpediteApplicationStarter.java"/>
+			<!-- fileset dir="${src.home}" includes="**/GoldenGateXpediteConstants.java"/>
+			<fileset dir="${src.home}" includes="**/UpdateUtils.java"/ -->
+			<fileset dir="." includes="LICENSE.txt"/>
+		</jar>
+	</target>
+	
+	<target name="batchstarter">
+		<delete file="${jar.batch.starter}"/>
+		<jar destfile="${jar.batch.starter}" manifest="${file.home}/MANIFEST.batch.starter.MF">
+			<fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteBatchStarter.class"/>
+			<fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteBatchStarter$**.class"/>
+			<!-- fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteConstants.class"/>
+			<fileset dir="${build.home}/classes" includes="**/GoldenGateXpediteConstants$**.class"/>
+			<fileset dir="${build.home}/classes" includes="**/UpdateUtils.class"/>
+			<fileset dir="${build.home}/classes" includes="**/UpdateUtils$**.class"/ -->
+			<fileset dir="${src.home}" includes="**/GoldenGateXpediteBatchStarter.java"/>
+			<!-- fileset dir="${src.home}" includes="**/GoldenGateXpediteConstants.java"/>
+			<fileset dir="${src.home}" includes="**/UpdateUtils.java"/ -->
+			<fileset dir="." includes="LICENSE.txt"/>
+		</jar>
+	</target>
+	
+	<target name="xpeditezip" depends="xpedite,configmanager,xpeditestarter">
+		<delete file="${app.xpedite}" />
+		<zip destfile="${app.xpedite}">
+			<fileset dir="${lib.home}"/>
+			<fileset dir="${file.home}/xpedite" excludes="GgXpediteBatch.cnfg"/>
+			<fileset dir="${dist.home}/" includes="GgXpedite.jar"/>
+			<fileset dir="${dist.home}/" includes="GgXpediteStarter.jar"/>
+			<fileset dir="." includes="LICENSE.txt"/>
+		</zip>
+	</target>
+	
+	<target name="xpeditebatchzip" depends="xpedite,batch, batchstarter">
+		<delete file="${app.xpeditebatch}" />
+		<zip destfile="${app.xpeditebatch}">
+			<fileset dir="${file.home}/xpedite" includes="GgXpediteBatch.cnfg"/>
+			<fileset dir="${dist.home}/" includes="GgXpediteBatch.jar"/>
+			<fileset dir="." includes="LICENSE.txt"/>
+		</zip>
+	</target>
+	
+	<!--target name="xpeditewebzip" depends="xpedite">
+		<delete file="${app.xpediteweb}" />
+		<copy todir="${dist.home}/WEB-INF/lib">
+			<fileset dir="${dist.home}" includes="GgXpedite.jar"/>
+		</copy>
+		<zip destfile="${app.xpediteweb}">
+			<fileset dir="${dist.home}" includes="**/WEB-INF/**" />
+			<fileset dir="${file.home}/webapp" />
+			<fileset dir="." includes="LICENSE.txt"/>
+		</zip>
+	</target-->
+	
+	
+	<!-- target name="vpacker">
+		<delete file="${jar.vpacker}"/>
+		<jar destfile="${jar.vpacker}" manifest="${file.home}/MANIFEST.versionpacker.MF">
+			<fileset dir="${build.home}/classes" includes="**/VersionPacker.class"/>
+			<fileset dir="${build.home}/classes" includes="**/VersionPacker$**.class"/>
+			<fileset dir="${build.home}/classes" includes="**/PackerUtils.class"/>
+			<fileset dir="${build.home}/classes" includes="**/PackerUtils$**.class"/>
+			<fileset dir="${src.home}" includes="**/VersionPacker.java"/>
+			<fileset dir="${src.home}" includes="**/PackerUtils.java"/>
+			<fileset dir="." includes="LICENSE.txt"/>
+		</jar>
+	</target -->
+	
+	<!-- target name="vpackerzip" depends="vpacker">
+		<delete file="${app.vpacker}"/>
+		<zip destfile="${app.vpacker}">
+			<fileset dir="${file.home}/versionpacker"/>
+			<fileset dir="${dist.home}/" includes="_VersionPacker.xpedite.jar"/>
+			<fileset dir="." includes="LICENSE.txt"/>
+		</zip>
+	</target -->
+	
+	<!-- target name="xmfdocio">
+		<delete file="${dist.home}/Plugins/XmfDocumentFormat.jar"/>
+		<jar destfile="${dist.home}/Plugins/XmfDocumentFormat.jar">
+			<fileset dir="${build.home}/classes" includes="**/XmfDocumentFormatProvider.class"/>
+			<fileset dir="${build.home}/classes" includes="**/XmfDocumentFormatProvider$**.class"/>
+			<fileset dir="${src.home}" includes="**/XmfDocumentFormatProvider.java"/>
+			<fileset dir="." includes="LICENSE.txt"/>
+		</jar>
+	</target -->
+</project>

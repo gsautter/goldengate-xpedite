@@ -1,0 +1,243 @@
+/*
+ * Copyright (c) 2006-, IPD Boehm, Universitaet Karlsruhe (TH) / KIT, by Guido Sautter
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Universitaet Karlsruhe (TH) / KIT nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY UNIVERSITAET KARLSRUHE (TH) / KIT AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+package de.uka.ipd.idaho.xm.xpedite.web.plugins;
+
+import java.io.IOException;
+import java.io.Reader;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import de.uka.ipd.idaho.gamta.util.ProgressMonitor;
+import de.uka.ipd.idaho.htmlXmlUtil.accessories.HtmlPageBuilder;
+import de.uka.ipd.idaho.htmlXmlUtil.accessories.HtmlPageBuilder.HtmlPageBuilderHost;
+import de.uka.ipd.idaho.xm.XmAnnotation;
+import de.uka.ipd.idaho.xm.XmDocument;
+import de.uka.ipd.idaho.xm.util.XmDocumentMarkupPanel;
+import de.uka.ipd.idaho.xm.util.XmDocumentMarkupPanel.XmlMarkupTool;
+
+/**
+ * An image markup tool that opens a web based document view. Image Markup
+ * Tools that open a dialog with specific functionality in desktop use, rather
+ * than doing automated processing, should implement this interface to work in
+ * a web based setting as well. Note that this is only required if actions in
+ * the view modify the document directly, or if the dialog is highly
+ * sophisticated. Prompts that simply ask for parameters or the like can be
+ * handled via the various <code>DialogFactory.confirm()</code> methods.
+ * 
+ * @author sautter
+ */
+public interface WebDocumentViewer extends XmlMarkupTool {
+	
+	/**
+	 * Create a web based view of the document residing in a markup panel. All
+	 * dynamic content HTTP requests sent by the view page have to start with
+	 * the argument base URL to make sure requests are properly routed by to
+	 * the corresponding server side document view object.
+	 * @param xdmp the markup panel holding the document
+	 * @param baseUrl the URL to use
+	 * @return a web based view of the document
+	 */
+	public abstract WebDocumentView getWebDocumentView(String baseUrl);
+	
+	/**
+	 * A web based document view displaying (data from) a single document.
+	 * Classes implementing the surrounding interface should keep all status
+	 * information inside instances of this class, as multiple views from the
+	 * same viewer might be active simultaneously.
+	 * 
+	 * @author sautter
+	 */
+	public static abstract class WebDocumentView implements XmlMarkupTool {
+		private XmlMarkupTool parentImt;
+		
+		private Object lock = new Object();
+		
+		/** the URL that HTTP requests from the web based view to an instance of this class have to start with */
+		protected final String baseUrl;
+		
+		/** Constructor
+		 * @param parentImt the parent Image Markup Tool
+		 * @param baseUrl the base URL for HTTP requests
+		 */
+		protected WebDocumentView(XmlMarkupTool parentImt, String baseUrl) {
+			this.parentImt = parentImt;
+			this.baseUrl = baseUrl;
+		}
+		
+		/* (non-Javadoc)
+		 * @see de.uka.ipd.idaho.im.util.ImDocumentMarkupPanel.ImageMarkupTool#getLabel()
+		 */
+		public String getLabel() {
+			return this.parentImt.getLabel();
+		}
+		
+		/* (non-Javadoc)
+		 * @see de.uka.ipd.idaho.im.util.ImDocumentMarkupPanel.ImageMarkupTool#getTooltip()
+		 */
+		public String getTooltip() {
+			return this.parentImt.getTooltip();
+		}
+		
+		/* (non-Javadoc)
+		 * @see de.uka.ipd.idaho.im.util.ImDocumentMarkupPanel.ImageMarkupTool#getHelpText()
+		 */
+		public String getHelpText() {
+			return this.parentImt.getHelpText();
+		}
+		
+		/**
+		 * This implementation first calls the <code>preProcess()</code> method,
+		 * then blocks until the <code>close()</code> method is called, and
+		 * finally calls the <code>postProcess()</code> method.
+		 * @see de.uka.ipd.idaho.im.util.ImDocumentMarkupPanel.ImageMarkupTool#process(de.uka.ipd.idaho.im.ImDocument, de.uka.ipd.idaho.im.ImAnnotation, de.uka.ipd.idaho.im.util.ImDocumentMarkupPanel, de.uka.ipd.idaho.gamta.util.ProgressMonitor)
+		 */
+		public final void process(XmDocument doc, XmAnnotation annot, XmDocumentMarkupPanel xdmp, ProgressMonitor pm) {
+			
+			//	TODO consider storing document and annotation in protected variables, we need them all too often
+			
+			//	do processing before opening dialog
+			this.preProcess(doc, annot, xdmp);
+			
+			//	block until dialog closed
+			synchronized (this.lock) {
+				try {
+					this.lock.wait();
+				}
+				catch (InterruptedException ie) {
+					return; // if we get here, it's most likely due to a server shutdown
+				}
+			}
+			
+			//	do processing after dialog closed
+			this.postProcess(doc, annot, xdmp);
+		}
+		
+		/**
+		 * Do any processing required before the document view can be opened.
+		 * This default implementation does nothing, sub classes are welcome to
+		 * overwrite it as needed.
+		 * @param doc the document to process
+		 * @param annot the annotation to process (null for whole-document
+		 *        processing)
+		 * @param xdmp the markup panel displaying the argument document
+		 * @see de.uka.ipd.idaho.xm.util.XmDocumentMarkupPanel.XmlMarkupTool#process(de.uka.ipd.idaho.xm.XmDocument, de.uka.ipd.idaho.xm.XmAnnotation, de.uka.ipd.idaho.xm.util.XmDocumentMarkupPanel, de.uka.ipd.idaho.gamta.util.ProgressMonitor)
+		 */
+		protected void preProcess(XmDocument doc, XmAnnotation annot, XmDocumentMarkupPanel xdmp) {}
+		
+		/**
+		 * Do any processing required after the document view has been closed.
+		 * This default implementation does nothing, sub classes are welcome to
+		 * overwrite it as needed.
+		 * @param doc the document to process
+		 * @param annot the annotation to process (null for whole-document
+		 *        processing)
+		 * @param xdmp the markup panel displaying the argument document
+		 * @see de.uka.ipd.idaho.xm.util.XmDocumentMarkupPanel.XmlMarkupTool#process(de.uka.ipd.idaho.xm.XmDocument, de.uka.ipd.idaho.xm.XmAnnotation, de.uka.ipd.idaho.xm.util.XmDocumentMarkupPanel, de.uka.ipd.idaho.gamta.util.ProgressMonitor)
+		 */
+		protected void postProcess(XmDocument doc, XmAnnotation annot, XmDocumentMarkupPanel xdmp) {}
+		
+		/**
+		 * Close the view. This method is called by the surrounding code soon
+		 * as <code>isCloseRequest()</code> returns true. 
+		 */
+		public void close() {
+			synchronized (this.lock) {
+				this.lock.notify();
+			}
+		}
+		
+		/**
+		 * Get a builder for an HTML page representing the view. Sub classes
+		 * whose <code>preProcess()</code> method takes some time to return
+		 * should take measures to ensure that this method does not return a
+		 * page builder before the latter method has finished. This method can
+		 * be called multiple times, e.g. if a user hits the 'Reload' button,
+		 * and thus the internal state should not change.
+		 * @param host the host object granting access to files, etc.
+		 * @param request the HttpServletRequest to answer
+		 * @param response the HttpServletResponse to write the answer to
+		 * @return an HTML page builder creating the document view page
+		 * @throws IOException
+		 */
+		public abstract HtmlPageBuilder getViewPageBuilder(HtmlPageBuilderHost host, HttpServletRequest request, HttpServletResponse response) throws IOException;
+		
+		/**
+		 * Get a <code>Reader</code> that provides the static basic view page.
+		 * If this method returns null, the surrounding code should use the
+		 * default pop-up page template, with 'includeBody' being the only
+		 * marker tag. This default implementation does return null, sub
+		 * classes are welcome to overwrite it as needed.
+		 * @return a reader for the static basic HTML page.
+		 */
+		public Reader getViewBasePage() {
+			return null;
+		}
+		
+		/**
+		 * Handle an HTTP request directed at this view. Every request whose
+		 * path starts with the one handed to the constructor is routed to this
+		 * method, and it is up to implementations to indicate unsupported or
+		 * invalid requests and send respective error messages. There is one
+		 * exception, however: if <code>isCloseRequest()</code> returns true
+		 * for some request, implementations have to take respective action in
+		 * the latter method, and this one will not be called.<br/>
+		 * If this method takes any action that will potentially block, e.g. on
+		 * a call to <code>DialogPanel.confirm()</code>, it has to read all the
+		 * request parameters it requires before the (first) blocking call, and
+		 * may open a writer to the response only after the (last) blocking
+		 * call returns. Further, such blocking calls are only allowed on
+		 * requests that dynamically GET a JavaScript. Both restrictions exist
+		 * because showing a <code>confirm()</code> prompt in the browser side
+		 * UI requires an additional round trip, and the response to submitting
+		 * the prompt is expected to consist of JavaScript calls to the HTML
+		 * page created by the page builder this class provides via its
+		 * implementation of <code>getViewPageBuilder()</code>.
+		 * @param request the HTTP request to handle
+		 * @param response the HTTP response to write to
+		 * @param pathInfo the part of the URL after the base URL
+		 * @return true if the request has been handled, false otherwise
+		 * @throws IOException
+		 */
+		public abstract boolean handleRequest(HttpServletRequest request, HttpServletResponse response, String pathInfo) throws IOException;
+		
+		/**
+		 * Test if an HTTP request is intended to close the view. The HTML page
+		 * representing the view in a browser <b>must</b> send a request for
+		 * which this method returns true for any action that is intended to
+		 * close the view. Implementations may read the request body and act
+		 * upon it, e.g. if the request is the result of a form in the browser
+		 * side view being committed.
+		 * @param request the HTTP request to check
+		 * @param pathInfo the part of the URL after the base URL
+		 * @return true if the view should be closed in response to the
+		 *        argument HTTP request
+		 */
+		public abstract boolean isCloseRequest(HttpServletRequest request, String pathInfo);
+	}
+}
